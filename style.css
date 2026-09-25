@@ -1,0 +1,77 @@
+:root{
+  --bg:#F5F6F3;
+  --ink:#1B2430;
+  --ink-soft:#5B6570;
+  --line:#DFE2DE;
+  --accent:#E4572E;
+  --accent-dark:#C1441F;
+  --success:#2F8F5B;
+  --success-bg:#E6F3EC;
+  --danger:#C1443B;
+  --danger-bg:#FBEAE8;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  margin:0;
+  padding:0 16px 48px;
+}
+.page{max-width:480px;margin:0 auto}
+.topbar{margin:0 -16px 24px;padding:28px 16px 20px;border-bottom:4px solid var(--accent)}
+h1{font-size:24px;font-weight:800;letter-spacing:-0.01em;margin:0 0 4px}
+.sous-titre{color:var(--ink-soft);font-size:14px;margin:0}
+
+.section-titre{font-weight:700;font-size:14px;color:var(--ink);border-left:3px solid var(--accent);padding-left:10px;margin:26px 0 10px}
+.champ{margin-bottom:14px;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;max-height:400px;opacity:1}
+.champ.masque{max-height:0;opacity:0;margin:0;pointer-events:none}
+
+input[type=text],input[type=number],input[type=date],input[type=url]{
+  width:100%;padding:12px 14px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);
+}
+input:focus{outline:2px solid var(--accent);outline-offset:1px}
+select{width:100%;padding:12px 14px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{position:relative}
+.pill input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.pill span{display:inline-block;padding:10px 16px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:600;color:var(--ink-soft);background:#fff;transition:background .15s,border-color .15s,color .15s}
+.pill input:checked + span{background:var(--accent);border-color:var(--accent);color:#fff}
+.pill input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+
+.requis{color:var(--accent)}
+
+.principal{
+  display:block;width:100%;box-sizing:border-box;padding:15px;margin-top:28px;
+  background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;
+  text-align:center;text-decoration:none;cursor:pointer;
+}
+.principal:active{background:var(--accent-dark)}
+
+#msg{margin-top:14px;padding:12px 14px;border-radius:10px;font-size:14px;font-weight:600;display:none}
+#msg.ok{display:block;background:var(--success-bg);color:var(--success)}
+#msg.err{display:block;background:var(--danger-bg);color:var(--danger)}
+
+table{border-collapse:collapse;width:100%;margin-top:8px;font-size:13px}
+th{text-align:left;color:var(--ink-soft);font-weight:600;padding:8px 6px;border-bottom:1px solid var(--line)}
+td{padding:9px 6px;border-bottom:1px solid var(--line)}
+.statut{padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px}
+.statut.ouvert{background:var(--success-bg);color:var(--success)}
+.statut.ferme{background:var(--danger-bg);color:var(--danger)}
+
+.barre-nav{display:flex;gap:8px;margin-bottom:18px}
+.btn-nav{display:inline-flex;align-items:center;padding:8px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-size:13px;font-weight:600;text-decoration:none;cursor:pointer}
+.btn-nav:active{border-color:var(--accent)}
+
+.carte-tournoi{display:block;padding:16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;text-decoration:none;color:var(--ink)}
+.carte-tournoi:active{border-color:var(--accent)}
+.carte-titre{font-weight:700;font-size:16px}
+.carte-sous{color:var(--ink-soft);font-size:13px;margin-top:2px}
+
+.pill-info{display:inline-block;padding:8px 14px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:13px;font-weight:600;margin:0 8px 8px 0}
+
+.ligne-covoit{padding:10px 0;border-bottom:1px solid var(--line)}
+.ligne-covoit strong{display:block;font-size:14px}
+.ligne-covoit .detail{color:var(--ink-soft);font-size:13px}
+.badge-voiture{display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;background:var(--success-bg);color:var(--success);font-size:12px;font-weight:700}

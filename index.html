@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tournois</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <h1>Tournois</h1>
+    <p class="sous-titre">Choisis un tournoi</p>
+  </div>
+
+  <div class="section-titre">Ouverts aux inscriptions</div>
+  <div id="liste-ouverts"></div>
+
+  <div class="section-titre" style="margin-top:32px">Tournois passés</div>
+  <div id="liste-fermes"></div>
+</div>
+
+<script src="api.js"></script>
+<script>
+(async function () {
+  try {
+    const tournois = await apiGet('listTournois');
+    const ouverts = tournois.filter(function (t) { return t.statut === 'Ouvert'; });
+    const fermes = tournois.filter(function (t) { return t.statut !== 'Ouvert'; });
+    remplir('liste-ouverts', ouverts, 'Aucun tournoi ouvert pour le moment.');
+    remplir('liste-fermes', fermes, 'Aucun tournoi passé.');
+  } catch (err) {
+    document.getElementById('liste-ouverts').innerHTML =
+      '<p class="sous-titre" style="color:var(--danger)">Erreur : ' + err.message + '</p>';
+  }
+})();
+
+function remplir(id, tournois, texteVide) {
+  const container = document.getElementById(id);
+  container.innerHTML = '';
+  if (tournois.length === 0) {
+    container.innerHTML = '<p class="sous-titre">' + texteVide + '</p>';
+    return;
+  }
+  tournois.forEach(function (t) {
+    const a = document.createElement('a');
+    a.className = 'carte-tournoi';
+    a.href = 'tableau.html?tournoi=' + encodeURIComponent(t.nomTournoi);
+
+    const titre = document.createElement('div');
+    titre.className = 'carte-titre';
+    titre.textContent = t.nomTournoi;
+
+    const sous = document.createElement('div');
+    sous.className = 'carte-sous';
+    sous.textContent = t.ville;
+
+    const date = document.createElement('div');
+    date.className = 'carte-sous';
+    date.textContent = t.date;
+
+    a.appendChild(titre);
+    a.appendChild(sous);
+    a.appendChild(date);
+    container.appendChild(a);
+  });
+}
+</script>
+</body>
+</html>

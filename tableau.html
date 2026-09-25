@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tournoi</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <div id="nav-placeholder"></div>
+  <div class="topbar">
+    <h1 id="titre-tournoi"></h1>
+    <p class="sous-titre">Qui est déjà inscrit</p>
+  </div>
+
+  <a class="principal" id="lien-inscription" href="#">S'inscrire à ce tournoi</a>
+
+  <div id="stats"></div>
+
+  <div class="section-titre">Covoiturage — aller</div>
+  <div id="aller"></div>
+
+  <div class="section-titre">Covoiturage — retour</div>
+  <div id="retour"></div>
+</div>
+
+<script src="api.js"></script>
+<script src="nav.js"></script>
+<script>
+const TOURNOI = new URLSearchParams(location.search).get('tournoi') || '';
+document.getElementById('titre-tournoi').textContent = TOURNOI || 'Tournoi introuvable';
+document.getElementById('lien-inscription').href = 'inscription.html?tournoi=' + encodeURIComponent(TOURNOI);
+
+(async function () {
+  try {
+    const stats = await apiGet('getStatsTournoi', { nom: TOURNOI });
+    afficher(stats);
+  } catch (err) {
+    document.getElementById('stats').innerHTML =
+      '<p class="sous-titre" style="color:var(--danger)">Erreur : ' + err.message + '</p>';
+  }
+
+  try {
+    const t = await apiGet('getTournoi', { nom: TOURNOI });
+    if (!t || t.statut !== 'Ouvert') {
+      const lien = document.getElementById('lien-inscription');
+      lien.textContent = 'Inscriptions closes';
+      lien.removeAttribute('href');
+      lien.style.opacity = '0.5';
+      lien.style.pointerEvents = 'none';
+    }
+  } catch (err) { /* non bloquant */ }
+})();
+
+function afficher(stats) {
+  const statsDiv = document.getElementById('stats');
+  statsDiv.innerHTML = '';
+
+  const total = document.createElement('p');
+  total.className = 'sous-titre';
+  total.textContent = stats.total + ' inscrit(s) pour le moment';
+  statsDiv.appendChild(total);
+
+  Object.keys(stats.parChamp).forEach(function (id) {
+    const champ = stats.parChamp[id];
+
+    const titre = document.createElement('div');
+    titre.className = 'section-titre';
+    titre.textContent = champ.label;
+    statsDiv.appendChild(titre);
+
+    const pills = document.createElement('div');
+    pills.className = 'pills';
+    Object.keys(champ.counts).forEach(function (opt) {
+      const span = document.createElement('span');
+      span.className = 'pill-info';
+      span.textContent = opt + ' : ' + champ.counts[opt];
+      pills.appendChild(span);
+    });
+    statsDiv.appendChild(pills);
+  });
+
+  remplirListe('aller', stats.covoitAller);
+  remplirListe('retour', stats.covoitRetour);
+}
+
+function remplirListe(id, liste) {
+  const container = document.getElementById(id);
+  container.innerHTML = '';
+  if (liste.length === 0) {
+    container.innerHTML = '<p class="sous-titre">Personne pour le moment.</p>';
+    return;
+  }
+  liste.forEach(function (p) {
+    const div = document.createElement('div');
+    div.className = 'ligne-covoit';
+
+    const nom = document.createElement('strong');
+    nom.textContent = p.nom;
+    div.appendChild(nom);
+
+    const detail = document.createElement('div');
+    detail.className = 'detail';
+    detail.textContent = p.creneaux || 'Créneau non précisé';
+    div.appendChild(detail);
+
+    if (p.propose) {
+      const badge = document.createElement('span');
+      badge.className = 'badge-voiture';
+      badge.textContent = 'Propose sa voiture (' + p.places + ' place(s))';
+      div.appendChild(badge);
+    }
+    container.appendChild(div);
+  });
+}
+</script>
+</body>
+</html>

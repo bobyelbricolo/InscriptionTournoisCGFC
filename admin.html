@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administration</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <div id="nav-placeholder"></div>
+  <div class="topbar">
+    <h1>Administration</h1>
+    <p class="sous-titre">Effectif, tournois et inscriptions</p>
+  </div>
+
+  <div class="section-titre">Ajouter un joueur à l'effectif</div>
+  <div class="champ"><input type="text" id="roster-nom" placeholder="Nom"></div>
+  <div class="champ"><input type="text" id="roster-prenom" placeholder="Prénom"></div>
+  <button class="principal" onclick="ajouterMembre()">Ajouter à l'effectif</button>
+  <div id="msg-roster"></div>
+
+  <div class="section-titre" style="margin-top:36px">Effectif actuel</div>
+  <div id="liste-roster" class="sous-titre">Chargement...</div>
+
+  <div class="section-titre" style="margin-top:36px">Ajouter un tournoi</div>
+  <div id="form"></div>
+  <button class="principal" onclick="envoyer()">Ajouter le tournoi</button>
+  <div id="msg"></div>
+
+  <div class="section-titre" style="margin-top:36px">Tournois existants</div>
+  <table id="liste"></table>
+
+  <div class="section-titre" style="margin-top:36px">Modifier une inscription</div>
+  <div class="champ"><select id="edit-tournoi"><option value="">Choisis un tournoi</option></select></div>
+  <div class="champ"><select id="edit-joueur"><option value="">Choisis un joueur</option></select></div>
+  <div id="edit-form"></div>
+  <button class="principal" id="edit-btn" style="display:none" onclick="enregistrerEdition()">Enregistrer les modifications</button>
+  <div id="msg-edit"></div>
+</div>
+
+<script src="api.js"></script>
+<script src="nav.js"></script>
+<script>
+let CONFIG_TOURNOIS;
+let CONFIG_JOUEURS;
+let INSCRIPTIONS = [];
+let EDIT_RECORD = null;
+
+(async function () {
+  chargerRoster();
+  try {
+    CONFIG_TOURNOIS = await apiGet('config', { section: 'tournois' });
+    render();
+  } catch (err) { afficherMsg('msg', 'Erreur : ' + err.message, 'err'); }
+  try {
+    CONFIG_JOUEURS = await apiGet('config', { section: 'joueurs' });
+  } catch (err) { afficherMsg('msg-edit', 'Erreur : ' + err.message, 'err'); }
+  chargerListe();
+  chargerTournoisEdition();
+})();
+
+// --- Effectif ---
+async function ajouterMembre() {
+  const nom = document.getElementById('roster-nom').value.trim();
+  const prenom = document.getElementById('roster-prenom').value.trim();
+  if (!nom || !prenom) { afficherMsg('msg-roster', 'Nom et prénom requis.', 'err'); return; }
+  afficherMsg('msg-roster', 'Envoi en cours...', '');
+  try {
+    await apiPost('addRosterMembre', { nom: nom, prenom: prenom });
+    document.getElementById('roster-nom').value = '';
+    document.getElementById('roster-prenom').value = '';
+    afficherMsg('msg-roster', 'Joueur ajouté !', 'ok');
+    chargerRoster();
+  } catch (err) {
+    afficherMsg('msg-roster', 'Erreur : ' + err.message, 'err');
+  }
+}
+
+async function chargerRoster() {
+  try {
+    const liste = await apiGet('getRoster');
+    const container = document.getElementById('liste-roster');
+    container.textContent = liste.length === 0 ? 'Aucun joueur pour le moment.' : liste.map(function (p) { return p.prenom + ' ' + p.nom; }).join(', ');
+  } catch (err) {
+    document.getElementById('liste-roster').textContent = 'Erreur : ' + err.message;
+  }
+}
+
+// --- Tournois ---
+function render() {
+  const container = document.getElementById('form');
+  container.innerHTML = '';
+  CONFIG_TOURNOIS.fields.forEach(function (f) {
+    const wrap = document.createElement('div');
+    wrap.className = 'champ';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'section-titre';
+    lbl.innerHTML = f.label + (f.required ? ' <span class="requis">*</span>' : '');
+    wrap.appendChild(lbl);
+
+    if (f.type === 'checkbox') {
+      const group = document.createElement('div');
+      group.className = 'pills';
+      f.options.forEach(function (opt) {
+        const label = document.createElement('label');
+        label.className = 'pill';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.name = f.id;
+        input.value = opt;
+        const span = document.createElement('span');
+        span.textContent = opt;
+        label.appendChild(input);
+        label.appendChild(span);
+        group.appendChild(label);
+      });
+      wrap.appendChild(group);
+    } else {
+      const input = document.createElement('input');
+      input.type = f.type;
+      input.id = f.id;
+      wrap.appendChild(input);
+    }
+    container.appendChild(wrap);
+  });
+}
+
+async function envoyer() {
+  const data = {};
+  try {
+    CONFIG_TOURNOIS.fields.forEach(function (f) {
+      if (f.type === 'checkbox') {
+        const checked = Array.from(document.querySelectorAll('input[name="' + f.id + '"]:checked')).map(function (i) { return i.value; });
+        data[f.id] = checked.join(', ');
+      } else {
+        data[f.id] = document.getElementById(f.id).value || '';
+      }
+      if (f.required && !data[f.id]) throw new Error('Champ requis manquant : ' + f.label);
+    });
+  } catch (err) {
+    afficherMsg('msg', err.message, 'err');
+    return;
+  }
+
+  afficherMsg('msg', 'Envoi en cours...', '');
+  try {
+    await apiPost('submitTournoi', data);
+    afficherMsg('msg', 'Tournoi ajouté !', 'ok');
+    chargerListe();
+    chargerTournoisEdition();
+  } catch (err) {
+    afficherMsg('msg', 'Erreur : ' + err.message, 'err');
+  }
+}
+
+async function chargerListe() {
+  try {
+    const tournois = await apiGet('listTournois');
+    const table = document.getElementById('liste');
+    table.innerHTML = '<tr><th>Nom</th><th>Ville</th><th>Date</th><th>Statut</th></tr>';
+    tournois.forEach(function (t) {
+      const row = table.insertRow();
+      row.insertCell().textContent = t.nomTournoi;
+      row.insertCell().textContent = t.ville;
+      row.insertCell().textContent = t.date;
+      const cell = row.insertCell();
+      const span = document.createElement('span');
+      span.className = 'statut ' + (t.statut === 'Ouvert' ? 'ouvert' : 'ferme');
+      span.textContent = t.statut;
+      cell.appendChild(span);
+    });
+  } catch (err) {
+    afficherMsg('msg', 'Erreur : ' + err.message, 'err');
+  }
+}
+
+// --- Modifier une inscription ---
+async function chargerTournoisEdition() {
+  try {
+    const tournois = await apiGet('listTournois');
+    const select = document.getElementById('edit-tournoi');
+    select.innerHTML = '<option value="">Choisis un tournoi</option>';
+    tournois.forEach(function (t) {
+      const option = document.createElement('option');
+      option.value = t.nomTournoi;
+      option.textContent = t.nomTournoi + ' (' + t.statut + ')';
+      select.appendChild(option);
+    });
+  } catch (err) {
+    afficherMsg('msg-edit', 'Erreur : ' + err.message, 'err');
+  }
+}
+
+document.getElementById('edit-tournoi').onchange = async function () {
+  const tournoi = this.value;
+  const joueurSelect = document.getElementById('edit-joueur');
+  joueurSelect.innerHTML = '<option value="">Choisis un joueur</option>';
+  document.getElementById('edit-form').innerHTML = '';
+  document.getElementById('edit-btn').style.display = 'none';
+  if (!tournoi) return;
+  try {
+    INSCRIPTIONS = await apiGet('listInscriptions', { tournoi: tournoi });
+    INSCRIPTIONS.forEach(function (r, i) {
+      const option = document.createElement('option');
+      option.value = i;
+      option.textContent = r.prenom + ' ' + r.nom;
+      joueurSelect.appendChild(option);
+    });
+  } catch (err) {
+    afficherMsg('msg-edit', 'Erreur : ' + err.message, 'err');
+  }
+};
+
+document.getElementById('edit-joueur').onchange = function () {
+  document.getElementById('edit-form').innerHTML = '';
+  document.getElementById('edit-btn').style.display = 'none';
+  if (this.value === '') return;
+  EDIT_RECORD = INSCRIPTIONS[this.value];
+  renderEditForm();
+  document.getElementById('edit-btn').style.display = '';
+};
+
+function renderEditForm() {
+  const container = document.getElementById('edit-form');
+  container.innerHTML = '';
+  CONFIG_JOUEURS.fields.forEach(function (f) {
+    if (f.source === 'roster') return;
+    const wrap = document.createElement('div');
+    wrap.className = 'champ';
+    wrap.id = 'edit-wrap-' + f.id;
+
+    const lbl = document.createElement('div');
+    lbl.className = 'section-titre';
+    lbl.textContent = f.label;
+    wrap.appendChild(lbl);
+
+    if (f.type === 'bool') {
+      const group = document.createElement('div');
+      group.className = 'pills';
+      const label = document.createElement('label');
+      label.className = 'pill';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.id = 'edit-' + f.id;
+      input.checked = EDIT_RECORD[f.id] === true;
+      input.onchange = updateEditVisibility;
+      const span = document.createElement('span');
+      span.textContent = 'Oui, il/elle participe';
+      label.appendChild(input);
+      label.appendChild(span);
+      group.appendChild(label);
+      wrap.appendChild(group);
+    } else if (f.type === 'radio' || f.type === 'checkbox') {
+      const group = document.createElement('div');
+      group.className = 'pills';
+      const selected = f.type === 'checkbox'
+        ? (EDIT_RECORD[f.id] || '').split(',').map(function (s) { return s.trim(); })
+        : [EDIT_RECORD[f.id]];
+      f.options.forEach(function (opt) {
+        const label = document.createElement('label');
+        label.className = 'pill';
+        const input = document.createElement('input');
+        input.type = f.type === 'radio' ? 'radio' : 'checkbox';
+        input.name = 'edit-' + f.id;
+        input.value = opt;
+        if (selected.indexOf(opt) !== -1) input.checked = true;
+        input.onchange = updateEditVisibility;
+        const span = document.createElement('span');
+        span.textContent = opt;
+        label.appendChild(input);
+        label.appendChild(span);
+        group.appendChild(label);
+      });
+      wrap.appendChild(group);
+    } else {
+      const input = document.createElement('input');
+      input.type = f.type;
+      input.id = 'edit-' + f.id;
+      input.value = EDIT_RECORD[f.id] || '';
+      input.oninput = updateEditVisibility;
+      wrap.appendChild(input);
+    }
+    container.appendChild(wrap);
+  });
+  updateEditVisibility();
+}
+
+function editFieldValue(id) {
+  const radio = document.querySelector('input[name="edit-' + id + '"]:checked');
+  if (radio) return radio.value;
+  const el = document.getElementById('edit-' + id);
+  if (el && el.type === 'checkbox') return el.checked;
+  if (el) return el.value;
+  return undefined;
+}
+
+function updateEditVisibility() {
+  CONFIG_JOUEURS.fields.forEach(function (f) {
+    if (f.source === 'roster') return;
+    const wrap = document.getElementById('edit-wrap-' + f.id);
+    let visible = true;
+    if (f.dependsOn) {
+      const v = editFieldValue(f.dependsOn);
+      visible = f.dependsValue ? v === f.dependsValue : !!v;
+    } else if (f.dependsOnAny) {
+      visible = f.dependsOnAny.some(function (id) { return !!editFieldValue(id); });
+    }
+    wrap.classList.toggle('masque', !visible);
+  });
+}
+
+async function enregistrerEdition() {
+  const data = { tournoi: EDIT_RECORD.tournoi, nom: EDIT_RECORD.nom, prenom: EDIT_RECORD.prenom };
+  CONFIG_JOUEURS.fields.forEach(function (f) {
+    if (f.source === 'roster') return;
+    const wrap = document.getElementById('edit-wrap-' + f.id);
+    if (wrap.classList.contains('masque')) { data[f.id] = ''; return; }
+    if (f.type === 'checkbox') {
+      const checked = Array.from(document.querySelectorAll('input[name="edit-' + f.id + '"]:checked')).map(function (i) { return i.value; });
+      data[f.id] = checked.join(', ');
+    } else if (f.type === 'bool') {
+      data[f.id] = document.getElementById('edit-' + f.id).checked;
+    } else {
+      data[f.id] = editFieldValue(f.id) || '';
+    }
+  });
+  afficherMsg('msg-edit', 'Enregistrement...', '');
+  try {
+    await apiPost('submitJoueur', data);
+    afficherMsg('msg-edit', 'Inscription mise à jour !', 'ok');
+  } catch (err) {
+    afficherMsg('msg-edit', 'Erreur : ' + err.message, 'err');
+  }
+}
+
+function afficherMsg(id, texte, classe) {
+  const msg = document.getElementById(id);
+  msg.textContent = texte;
+  msg.className = classe;
+}
+</script>
+</body>
+</html>

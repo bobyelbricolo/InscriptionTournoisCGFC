@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inscription</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+  <div id="nav-placeholder"></div>
+  <div class="topbar">
+    <h1>Inscription</h1>
+    <p class="sous-titre" id="sous-titre-tournoi"></p>
+  </div>
+
+  <div id="roster-wrap" class="champ">
+    <div class="section-titre">Qui es-tu ? <span class="requis">*</span></div>
+    <select id="roster-select"><option value="">Sélectionne ton nom</option></select>
+  </div>
+
+  <div id="form"></div>
+  <button class="principal" id="form-btn" onclick="envoyer()">S'inscrire</button>
+  <div id="msg"></div>
+</div>
+
+<script src="api.js"></script>
+<script src="nav.js"></script>
+<script>
+const TOURNOI = new URLSearchParams(location.search).get('tournoi') || '';
+document.getElementById('sous-titre-tournoi').textContent = TOURNOI || 'Choisis d’abord un tournoi sur la page d’accueil';
+
+let CONFIG;
+let ROSTER = [];
+let ROSTER_SELECTED = null;
+let VERROUILLE = false;
+
+(async function () {
+  try {
+    const t = await apiGet('getTournoi', { nom: TOURNOI });
+    if (TOURNOI && (!t || t.statut !== 'Ouvert')) {
+      VERROUILLE = true;
+      document.getElementById('roster-wrap').style.display = 'none';
+      document.getElementById('form').style.display = 'none';
+      document.getElementById('form-btn').style.display = 'none';
+      afficherMsg('Les inscriptions sont closes pour ce tournoi.', 'err');
+    }
+  } catch (err) {
+    afficherMsg('Erreur : ' + err.message, 'err');
+  }
+
+  try {
+    ROSTER = await apiGet('getRoster');
+    const select = document.getElementById('roster-select');
+    ROSTER.forEach(function (p, i) {
+      const option = document.createElement('option');
+      option.value = i;
+      option.textContent = p.prenom + ' ' + p.nom;
+      select.appendChild(option);
+    });
+    select.onchange = function () {
+      ROSTER_SELECTED = select.value === '' ? null : ROSTER[select.value];
+      updateVisibility();
+      chargerInscriptionExistante();
+    };
+  } catch (err) {
+    afficherMsg('Erreur de chargement de l’effectif : ' + err.message, 'err');
+  }
+
+  try {
+    CONFIG = await apiGet('config', { section: 'joueurs' });
+    render();
+  } catch (err) {
+    afficherMsg('Erreur de chargement du formulaire : ' + err.message, 'err');
+  }
+})();
+
+function render() {
+  const container = document.getElementById('form');
+  container.innerHTML = '';
+  CONFIG.fields.forEach(function (f) {
+    if (f.source === 'roster') return;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'champ';
+    wrap.id = 'wrap-' + f.id;
+
+    const lbl = document.createElement('div');
+    lbl.className = 'section-titre';
+    lbl.innerHTML = f.label + (f.required ? ' <span class="requis">*</span>' : '');
+    wrap.appendChild(lbl);
+
+    if (f.type === 'bool') {
+      const group = document.createElement('div');
+      group.className = 'pills';
+      group.appendChild(pillOption(f.id, 'oui', 'Oui, je participe', 'checkbox', updateVisibility, false, f.id));
+      wrap.appendChild(group);
+    } else if (f.type === 'text' || f.type === 'number' || f.type === 'url' || f.type === 'date') {
+      const input = document.createElement('input');
+      input.type = f.type;
+      input.id = f.id;
+      input.oninput = updateVisibility;
+      wrap.appendChild(input);
+    } else if (f.type === 'radio' || f.type === 'checkbox') {
+      const group = document.createElement('div');
+      group.className = 'pills';
+      f.options.forEach(function (opt) {
+        group.appendChild(pillOption(f.id, opt, opt, f.type, updateVisibility, f.type === 'radio' && f.default === opt));
+      });
+      wrap.appendChild(group);
+    }
+    container.appendChild(wrap);
+  });
+  updateVisibility();
+}
+
+function pillOption(name, value, texte, type, onChange, checked, forceId) {
+  const label = document.createElement('label');
+  label.className = 'pill';
+  const input = document.createElement('input');
+  input.type = type === 'radio' ? 'radio' : 'checkbox';
+  input.name = name;
+  input.value = value;
+  if (forceId) input.id = forceId;
+  if (checked) input.checked = true;
+  input.onchange = onChange;
+  const span = document.createElement('span');
+  span.textContent = texte;
+  label.appendChild(input);
+  label.appendChild(span);
+  return label;
+}
+
+function fieldValue(id) {
+  const radio = document.querySelector('input[name="' + id + '"]:checked');
+  if (radio) return radio.value;
+  const el = document.getElementById(id);
+  if (el && el.type === 'checkbox') return el.checked;
+  if (el) return el.value;
+  return undefined;
+}
+
+function updateVisibility() {
+  if (!CONFIG) return;
+  CONFIG.fields.forEach(function (f) {
+    if (f.source === 'roster') return;
+    const wrap = document.getElementById('wrap-' + f.id);
+    let visible = true;
+    if (f.dependsOn) {
+      const v = fieldValue(f.dependsOn);
+      visible = f.dependsValue ? v === f.dependsValue : !!v;
+    } else if (f.dependsOnAny) {
+      visible = f.dependsOnAny.some(function (id) { return !!fieldValue(id); });
+    }
+    wrap.classList.toggle('masque', !visible);
+  });
+}
+
+async function chargerInscriptionExistante() {
+  if (!ROSTER_SELECTED || !TOURNOI) {
+    document.getElementById('form-btn').textContent = "S'inscrire";
+    return;
+  }
+  try {
+    const record = await apiGet('getInscription', { tournoi: TOURNOI, nom: ROSTER_SELECTED.nom, prenom: ROSTER_SELECTED.prenom });
+    if (record) {
+      prefillForm(record);
+      document.getElementById('form-btn').textContent = 'Mettre à jour mon inscription';
+    } else {
+      document.getElementById('form-btn').textContent = "S'inscrire";
+    }
+  } catch (err) {
+    afficherMsg('Erreur : ' + err.message, 'err');
+  }
+}
+
+function prefillForm(record) {
+  CONFIG.fields.forEach(function (f) {
+    if (f.source === 'roster') return;
+    const val = record[f.id];
+    if (f.type === 'bool') {
+      const el = document.getElementById(f.id);
+      if (el) el.checked = val === true;
+    } else if (f.type === 'radio') {
+      const radio = document.querySelector('input[name="' + f.id + '"][value="' + val + '"]');
+      if (radio) radio.checked = true;
+    } else if (f.type === 'checkbox') {
+      const selected = (val || '').split(',').map(function (s) { return s.trim(); });
+      document.querySelectorAll('input[name="' + f.id + '"]').forEach(function (cb) {
+        cb.checked = selected.indexOf(cb.value) !== -1;
+      });
+    } else {
+      const el = document.getElementById(f.id);
+      if (el) el.value = val || '';
+    }
+  });
+  updateVisibility();
+}
+
+async function envoyer() {
+  if (VERROUILLE) return;
+  if (!TOURNOI) { afficherMsg('Choisis d’abord un tournoi depuis la page d’accueil.', 'err'); return; }
+  if (!ROSTER_SELECTED) { afficherMsg('Sélectionne ton nom dans la liste.', 'err'); return; }
+
+  const data = { tournoi: TOURNOI, nom: ROSTER_SELECTED.nom, prenom: ROSTER_SELECTED.prenom };
+  try {
+    CONFIG.fields.forEach(function (f) {
+      if (f.source === 'roster') return;
+      const wrap = document.getElementById('wrap-' + f.id);
+      if (wrap.classList.contains('masque')) return;
+      if (f.type === 'checkbox') {
+        const checked = Array.from(document.querySelectorAll('input[name="' + f.id + '"]:checked')).map(function (i) { return i.value; });
+        data[f.id] = checked.join(', ');
+      } else if (f.type === 'bool') {
+        data[f.id] = document.getElementById(f.id).checked;
+      } else {
+        data[f.id] = fieldValue(f.id) || '';
+      }
+      if (f.required && !data[f.id]) throw new Error('Champ requis manquant : ' + f.label);
+    });
+  } catch (err) {
+    afficherMsg(err.message, 'err');
+    return;
+  }
+
+  afficherMsg('Envoi en cours...', '');
+  try {
+    const res = await apiPost('submitJoueur', data);
+    afficherMsg(res.modifie ? 'Inscription mise à jour !' : 'Inscription enregistrée !', 'ok');
+  } catch (err) {
+    afficherMsg('Erreur : ' + err.message, 'err');
+  }
+}
+
+function afficherMsg(texte, classe) {
+  const msg = document.getElementById('msg');
+  msg.textContent = texte;
+  msg.className = classe;
+}
+</script>
+</body>
+</html>
