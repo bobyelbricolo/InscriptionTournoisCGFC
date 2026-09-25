@@ -1,5 +1,5 @@
 // Collez ici l'URL de votre déploiement Apps Script (se termine par /exec)
-const API_URL = 'COLLEZ_ICI_VOTRE_URL_APPS_SCRIPT';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwPAUPl8YtaTWrO6H_pj5899wy-JkE8Cd-L7Z_Zk-3xCsu9qXDVPXfN5U5IDwPsPoqwcA/exec';
 
 async function apiGet(action, params) {
   const url = new URL(API_URL);
