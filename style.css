@@ -9,6 +9,8 @@
   --success-bg:#E6F3EC;
   --danger:#C1443B;
   --danger-bg:#FBEAE8;
+  --warning:#B8730A;
+  --warning-bg:#FBF0DE;
 }
 *{box-sizing:border-box}
 body{
@@ -66,8 +68,15 @@ td{padding:9px 6px;border-bottom:1px solid var(--line)}
 
 .carte-tournoi{display:block;padding:16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;text-decoration:none;color:var(--ink)}
 .carte-tournoi:active{border-color:var(--accent)}
+.carte-tournoi.passe{opacity:.55;filter:grayscale(70%)}
+.carte-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 .carte-titre{font-weight:700;font-size:16px}
 .carte-sous{color:var(--ink-soft);font-size:13px;margin-top:2px}
+
+.badge-statut{flex-shrink:0;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px;white-space:nowrap}
+.badge-statut.ouvert{background:var(--success-bg);color:var(--success)}
+.badge-statut.bientot{background:var(--warning-bg);color:var(--warning)}
+.badge-statut.ferme{background:var(--danger-bg);color:var(--danger)}
 
 .pill-info{display:inline-block;padding:8px 14px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:13px;font-weight:600;margin:0 8px 8px 0}
 
