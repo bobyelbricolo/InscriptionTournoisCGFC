@@ -249,9 +249,18 @@ function getStatsTournoi_(nomTournoi) {
     });
   }
 
+// Joueurs par équipe avec leur présence (pour les listes déroulantes de Tableau)
+  const equipes = {};
+  rows.forEach(function (o) {
+    const e = o.equipe || 'Non renseigné';
+    if (!equipes[e]) equipes[e] = [];
+    equipes[e].push({ nom: o.prenom + ' ' + o.nom, presence: o.presence || '' });
+  });
+
   return {
     total: rows.length,
     parChamp: parChamp,
+    equipes: equipes,
     covoitAller: listeCovoit('covoitAller', 'creneauxAller'),
     covoitRetour: listeCovoit('covoitRetour', 'creneauxRetour')
   };
