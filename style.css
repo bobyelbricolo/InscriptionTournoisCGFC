@@ -93,3 +93,8 @@ td{padding:9px 6px;border-bottom:1px solid var(--line)}
 .liste-equipe .groupe-titre{grid-column:1 / -1;font-size:12px;font-weight:700;color:var(--ink-soft);margin-top:8px}
 .liste-equipe .groupe-titre:first-child{margin-top:0}
 .liste-equipe .joueur{font-size:14px}
+
+.liste-equipe .entete-groupe{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.liste-equipe .entete-groupe:first-child{margin-top:0}
+.liste-equipe .entete-groupe .sous-total{color:var(--accent)}
+.liste-equipe .total-ligne{margin-top:12px;padding-top:8px;border-top:2px solid var(--ink);font-size:13px;font-weight:700;text-align:right}
