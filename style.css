@@ -84,3 +84,12 @@ td{padding:9px 6px;border-bottom:1px solid var(--line)}
 .ligne-covoit strong{display:block;font-size:14px}
 .ligne-covoit .detail{color:var(--ink-soft);font-size:13px}
 .badge-voiture{display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;background:var(--success-bg);color:var(--success);font-size:12px;font-weight:700}
+.pill-info.cliquable{cursor:pointer;border-color:var(--accent);color:var(--accent)}
+.pill-info.cliquable.ouvert{background:var(--accent);color:#fff}
+
+.liste-equipe{display:none;margin:0 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.liste-equipe.ouvert{display:block}
+.liste-equipe .colonnes{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
+.liste-equipe .groupe-titre{grid-column:1 / -1;font-size:12px;font-weight:700;color:var(--ink-soft);margin-top:8px}
+.liste-equipe .groupe-titre:first-child{margin-top:0}
+.liste-equipe .joueur{font-size:14px}
