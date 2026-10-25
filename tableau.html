@@ -31,6 +31,10 @@
 const TOURNOI = new URLSearchParams(location.search).get('tournoi') || '';
 document.getElementById('titre-tournoi').textContent = TOURNOI || 'Tournoi introuvable';
 document.getElementById('lien-inscription').href = 'inscription.html?tournoi=' + encodeURIComponent(TOURNOI);
+// Champs dont les pastilles ouvrent une liste séparée gars / filles.
+// Pour en ajouter un autre plus tard, ajoutez simplement son id ici.
+const CHAMPS_EN_LISTE = ['lunchpack', 'repasSoir', 'logement'];
+const EQUIPES_ORDRE = ['Équipe gars', 'Équipe fille'];
 
 (async function () {
   try {
@@ -53,10 +57,7 @@ document.getElementById('lien-inscription').href = 'inscription.html?tournoi=' +
   } catch (err) { /* non bloquant */ }
 })();
 
-// Champs dont les pastilles ouvrent une liste séparée gars / filles.
-// Pour en ajouter un autre plus tard, ajoutez simplement son id ici.
-const CHAMPS_EN_LISTE = ['lunchpack', 'repasSoir', 'logement'];
-const EQUIPES_ORDRE = ['Équipe gars', 'Équipe fille'];
+
 
 function afficher(stats) {
   const statsDiv = document.getElementById('stats');
