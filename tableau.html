@@ -53,6 +53,11 @@ document.getElementById('lien-inscription').href = 'inscription.html?tournoi=' +
   } catch (err) { /* non bloquant */ }
 })();
 
+// Champs dont les pastilles ouvrent une liste séparée gars / filles.
+// Pour en ajouter un autre plus tard, ajoutez simplement son id ici.
+const CHAMPS_EN_LISTE = ['lunchpack', 'repasSoir', 'logement'];
+const EQUIPES_ORDRE = ['Équipe gars', 'Équipe fille'];
+
 function afficher(stats) {
   const statsDiv = document.getElementById('stats');
   statsDiv.innerHTML = '';
@@ -72,31 +77,47 @@ function afficher(stats) {
 
     const pills = document.createElement('div');
     pills.className = 'pills';
+    const panneauxDiv = document.createElement('div');
+    const ouvrables = [];
+
     Object.keys(champ.counts).forEach(function (opt) {
       const span = document.createElement('span');
       span.className = 'pill-info';
       span.textContent = opt + ' : ' + champ.counts[opt];
 
-      // Les pastilles d'équipe deviennent cliquables et ouvrent la liste des joueurs
+      let panneau = null;
       if (id === 'equipe' && stats.equipes && stats.equipes[opt]) {
+        panneau = construirePanneau(opt, stats.equipes[opt]);
+      } else if (CHAMPS_EN_LISTE.indexOf(id) !== -1) {
+        panneau = construirePanneauParEquipe((champ.membres && champ.membres[opt]) || []);
+      }
+
+      if (panneau) {
         span.classList.add('cliquable');
+        ouvrables.push({ span: span, panneau: panneau });
         span.onclick = function () {
-          const panneau = document.getElementById('liste-' + opt);
-          const ouvert = panneau.classList.toggle('ouvert');
-          span.classList.toggle('ouvert', ouvert);
+          const ouvrir = !panneau.classList.contains('ouvert');
+          ouvrables.forEach(function (p) {
+            p.panneau.classList.remove('ouvert');
+            p.span.classList.remove('ouvert');
+          });
+          if (ouvrir) {
+            panneau.classList.add('ouvert');
+            span.classList.add('ouvert');
+          }
         };
+        panneauxDiv.appendChild(panneau);
       }
       pills.appendChild(span);
     });
-    statsDiv.appendChild(pills);
 
-    // Un panneau déroulant par équipe, juste sous les pastilles
-    if (id === 'equipe') {
-      Object.keys(stats.equipes || {}).forEach(function (equipe) {
-        statsDiv.appendChild(construirePanneau(equipe, stats.equipes[equipe]));
-      });
-    }
+    statsDiv.appendChild(pills);
+    statsDiv.appendChild(panneauxDiv);
   });
+
+  remplirListe('aller', stats.covoitAller);
+  remplirListe('retour', stats.covoitRetour);
+}
 
   function construirePanneau(equipe, joueurs) {
   const panneau = document.createElement('div');
@@ -132,6 +153,56 @@ function afficher(stats) {
 
   remplirListe('aller', stats.covoitAller);
   remplirListe('retour', stats.covoitRetour);
+}
+
+function construirePanneauParEquipe(membres) {
+  const panneau = document.createElement('div');
+  panneau.className = 'liste-equipe';
+
+  if (membres.length === 0) {
+    panneau.textContent = 'Personne pour le moment.';
+    return panneau;
+  }
+
+  // Gars puis filles, puis toute autre valeur éventuelle (équipe non renseignée)
+  const groupes = EQUIPES_ORDRE.slice();
+  membres.forEach(function (m) {
+    if (groupes.indexOf(m.equipe) === -1) groupes.push(m.equipe);
+  });
+
+  groupes.forEach(function (eq) {
+    const gens = membres
+      .filter(function (m) { return m.equipe === eq; })
+      .sort(function (a, b) { return a.nom.localeCompare(b.nom); });
+
+    const entete = document.createElement('div');
+    entete.className = 'entete-groupe';
+    const nomEq = document.createElement('span');
+    nomEq.textContent = eq || 'Équipe non renseignée';
+    const sousTotal = document.createElement('span');
+    sousTotal.className = 'sous-total';
+    sousTotal.textContent = 'Sous-total : ' + gens.length;
+    entete.appendChild(nomEq);
+    entete.appendChild(sousTotal);
+    panneau.appendChild(entete);
+
+    const colonnes = document.createElement('div');
+    colonnes.className = 'colonnes';
+    gens.forEach(function (m) {
+      const d = document.createElement('div');
+      d.className = 'joueur';
+      d.textContent = m.nom;
+      colonnes.appendChild(d);
+    });
+    panneau.appendChild(colonnes);
+  });
+
+  const totalLigne = document.createElement('div');
+  totalLigne.className = 'total-ligne';
+  totalLigne.textContent = 'Total : ' + membres.length;
+  panneau.appendChild(totalLigne);
+
+  return panneau;
 }
 
 function remplirListe(id, liste) {
