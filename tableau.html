@@ -76,10 +76,59 @@ function afficher(stats) {
       const span = document.createElement('span');
       span.className = 'pill-info';
       span.textContent = opt + ' : ' + champ.counts[opt];
+
+      // Les pastilles d'équipe deviennent cliquables et ouvrent la liste des joueurs
+      if (id === 'equipe' && stats.equipes && stats.equipes[opt]) {
+        span.classList.add('cliquable');
+        span.onclick = function () {
+          const panneau = document.getElementById('liste-' + opt);
+          const ouvert = panneau.classList.toggle('ouvert');
+          span.classList.toggle('ouvert', ouvert);
+        };
+      }
       pills.appendChild(span);
     });
     statsDiv.appendChild(pills);
+
+    // Un panneau déroulant par équipe, juste sous les pastilles
+    if (id === 'equipe') {
+      Object.keys(stats.equipes || {}).forEach(function (equipe) {
+        statsDiv.appendChild(construirePanneau(equipe, stats.equipes[equipe]));
+      });
+    }
   });
+
+  function construirePanneau(equipe, joueurs) {
+  const panneau = document.createElement('div');
+  panneau.className = 'liste-equipe';
+  panneau.id = 'liste-' + equipe;
+
+  const colonnes = document.createElement('div');
+  colonnes.className = 'colonnes';
+
+  // Ordre de tri : ceux qui jouent, puis ceux qui supportent, puis ceux qui ne viennent pas
+  ['Je joue', 'Je supporte', 'Je ne viens pas'].forEach(function (g) {
+    const membres = joueurs
+      .filter(function (j) { return j.presence === g; })
+      .sort(function (a, b) { return a.nom.localeCompare(b.nom); });
+    if (membres.length === 0) return;
+
+    const titre = document.createElement('div');
+    titre.className = 'groupe-titre';
+    titre.textContent = g + ' (' + membres.length + ')';
+    colonnes.appendChild(titre);
+
+    membres.forEach(function (j) {
+      const d = document.createElement('div');
+      d.className = 'joueur';
+      d.textContent = j.nom;
+      colonnes.appendChild(d);
+    });
+  });
+
+  panneau.appendChild(colonnes);
+  return panneau;
+}
 
   remplirListe('aller', stats.covoitAller);
   remplirListe('retour', stats.covoitRetour);
