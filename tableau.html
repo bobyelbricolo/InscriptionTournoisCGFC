@@ -31,6 +31,7 @@
 const TOURNOI = new URLSearchParams(location.search).get('tournoi') || '';
 document.getElementById('titre-tournoi').textContent = TOURNOI || 'Tournoi introuvable';
 document.getElementById('lien-inscription').href = 'inscription.html?tournoi=' + encodeURIComponent(TOURNOI);
+
 // Champs dont les pastilles ouvrent une liste séparée gars / filles.
 // Pour en ajouter un autre plus tard, ajoutez simplement son id ici.
 const CHAMPS_EN_LISTE = ['lunchpack', 'repasSoir', 'logement'];
@@ -47,7 +48,7 @@ const EQUIPES_ORDRE = ['Équipe gars', 'Équipe fille'];
 
   try {
     const t = await apiGet('getTournoi', { nom: TOURNOI });
-    if (!t || t.statut !== 'Ouvert') {
+    if (!t || t.statut === 'Ferme') {
       const lien = document.getElementById('lien-inscription');
       lien.textContent = 'Inscriptions closes';
       lien.removeAttribute('href');
@@ -56,8 +57,6 @@ const EQUIPES_ORDRE = ['Équipe gars', 'Équipe fille'];
     }
   } catch (err) { /* non bloquant */ }
 })();
-
-
 
 function afficher(stats) {
   const statsDiv = document.getElementById('stats');
@@ -120,15 +119,14 @@ function afficher(stats) {
   remplirListe('retour', stats.covoitRetour);
 }
 
-  function construirePanneau(equipe, joueurs) {
+// Liste des joueurs d'une équipe, triée : je joue / je supporte / je ne viens pas
+function construirePanneau(equipe, joueurs) {
   const panneau = document.createElement('div');
   panneau.className = 'liste-equipe';
-  panneau.id = 'liste-' + equipe;
 
   const colonnes = document.createElement('div');
   colonnes.className = 'colonnes';
 
-  // Ordre de tri : ceux qui jouent, puis ceux qui supportent, puis ceux qui ne viennent pas
   ['Je joue', 'Je supporte', 'Je ne viens pas'].forEach(function (g) {
     const membres = joueurs
       .filter(function (j) { return j.presence === g; })
@@ -152,10 +150,7 @@ function afficher(stats) {
   return panneau;
 }
 
-  remplirListe('aller', stats.covoitAller);
-  remplirListe('retour', stats.covoitRetour);
-}
-
+// Liste des joueurs d'une option, séparée gars / filles avec sous-totaux et total
 function construirePanneauParEquipe(membres) {
   const panneau = document.createElement('div');
   panneau.className = 'liste-equipe';
@@ -165,7 +160,6 @@ function construirePanneauParEquipe(membres) {
     return panneau;
   }
 
-  // Gars puis filles, puis toute autre valeur éventuelle (équipe non renseignée)
   const groupes = EQUIPES_ORDRE.slice();
   membres.forEach(function (m) {
     if (groupes.indexOf(m.equipe) === -1) groupes.push(m.equipe);
