@@ -17,12 +17,6 @@
   <a class="principal" id="lien-inscription" href="#">S'inscrire à ce tournoi</a>
 
   <div id="stats"></div>
-
-  <div class="section-titre">Covoiturage — aller</div>
-  <div id="aller"></div>
-
-  <div class="section-titre">Covoiturage — retour</div>
-  <div id="retour"></div>
 </div>
 
 <script src="api.js"></script>
@@ -36,6 +30,8 @@ document.getElementById('lien-inscription').href = 'inscription.html?tournoi=' +
 // Pour en ajouter un autre plus tard, ajoutez simplement son id ici.
 const CHAMPS_EN_LISTE = ['lunchpack', 'repasSoir', 'logement'];
 const EQUIPES_ORDRE = ['Équipe gars', 'Équipe fille'];
+const CRENEAUX = ['Matin', 'Après-midi', 'Soir'];
+const ICONE_VOITURE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2-6h14l2 6v4h-2a2 2 0 0 1-4 0H9a2 2 0 0 1-4 0H3z"/><path d="M3 13h18"/></svg>';
 
 (async function () {
   try {
@@ -93,19 +89,7 @@ function afficher(stats) {
       }
 
       if (panneau) {
-        span.classList.add('cliquable');
-        ouvrables.push({ span: span, panneau: panneau });
-        span.onclick = function () {
-          const ouvrir = !panneau.classList.contains('ouvert');
-          ouvrables.forEach(function (p) {
-            p.panneau.classList.remove('ouvert');
-            p.span.classList.remove('ouvert');
-          });
-          if (ouvrir) {
-            panneau.classList.add('ouvert');
-            span.classList.add('ouvert');
-          }
-        };
+        relierPastille(span, panneau, ouvrables);
         panneauxDiv.appendChild(panneau);
       }
       pills.appendChild(span);
@@ -115,8 +99,7 @@ function afficher(stats) {
     statsDiv.appendChild(panneauxDiv);
   });
 
-  remplirListe('aller', stats.covoitAller);
-  remplirListe('retour', stats.covoitRetour);
+  afficherCovoiturage(stats, statsDiv);
 }
 
 // Liste des joueurs d'une équipe, triée : je joue / je supporte / je ne viens pas
@@ -200,34 +183,114 @@ function construirePanneauParEquipe(membres) {
   return panneau;
 }
 
-function remplirListe(id, liste) {
-  const container = document.getElementById(id);
-  container.innerHTML = '';
-  if (liste.length === 0) {
-    container.innerHTML = '<p class="sous-titre">Personne pour le moment.</p>';
-    return;
-  }
-  liste.forEach(function (p) {
-    const div = document.createElement('div');
-    div.className = 'ligne-covoit';
-
-    const nom = document.createElement('strong');
-    nom.textContent = p.nom;
-    div.appendChild(nom);
-
-    const detail = document.createElement('div');
-    detail.className = 'detail';
-    detail.textContent = p.creneaux || 'Créneau non précisé';
-    div.appendChild(detail);
-
-    if (p.propose) {
-      const badge = document.createElement('span');
-      badge.className = 'badge-voiture';
-      badge.textContent = 'Propose sa voiture (' + p.places + ' place(s))';
-      div.appendChild(badge);
+// Relie une pastille à son panneau : un clic ouvre le panneau et ferme les autres du même champ
+function relierPastille(span, panneau, ouvrables) {
+  span.classList.add('cliquable');
+  ouvrables.push({ span: span, panneau: panneau });
+  span.onclick = function () {
+    const ouvrir = !panneau.classList.contains('ouvert');
+    ouvrables.forEach(function (p) {
+      p.panneau.classList.remove('ouvert');
+      p.span.classList.remove('ouvert');
+    });
+    if (ouvrir) {
+      panneau.classList.add('ouvert');
+      span.classList.add('ouvert');
     }
-    container.appendChild(div);
+  };
+}
+
+// Catégorie "Covoiturage" avec deux pastilles : Aller et Retour
+function afficherCovoiturage(stats, conteneur) {
+  const titre = document.createElement('div');
+  titre.className = 'section-titre';
+  titre.textContent = 'Covoiturage';
+  conteneur.appendChild(titre);
+
+  const pills = document.createElement('div');
+  pills.className = 'pills';
+  const panneauxDiv = document.createElement('div');
+  const ouvrables = [];
+
+  [['Aller', stats.covoitAller || []], ['Retour', stats.covoitRetour || []]].forEach(function (trajet) {
+    const span = document.createElement('span');
+    span.className = 'pill-info';
+    span.textContent = trajet[0] + ' : ' + trajet[1].length;
+
+    const panneau = construirePanneauCovoit(trajet[1]);
+    relierPastille(span, panneau, ouvrables);
+    pills.appendChild(span);
+    panneauxDiv.appendChild(panneau);
   });
+
+  conteneur.appendChild(pills);
+  conteneur.appendChild(panneauxDiv);
+}
+
+// Liste d'un trajet, classée par créneau : matin / après-midi / soir
+function construirePanneauCovoit(liste) {
+  const panneau = document.createElement('div');
+  panneau.className = 'liste-equipe';
+
+  if (liste.length === 0) {
+    panneau.textContent = 'Personne pour le moment.';
+    return panneau;
+  }
+
+  const SANS_CRENEAU = 'Créneau non précisé';
+  CRENEAUX.concat([SANS_CRENEAU]).forEach(function (creneau) {
+    const gens = liste
+      .filter(function (p) {
+        const cren = (p.creneaux || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        return creneau === SANS_CRENEAU ? cren.length === 0 : cren.indexOf(creneau) !== -1;
+      })
+      .sort(function (a, b) {
+        if (a.propose !== b.propose) return a.propose ? -1 : 1; // conducteurs d'abord
+        return a.nom.localeCompare(b.nom);
+      });
+
+    if (creneau === SANS_CRENEAU && gens.length === 0) return;
+
+    const entete = document.createElement('div');
+    entete.className = 'entete-groupe';
+    const nomCreneau = document.createElement('span');
+    nomCreneau.textContent = creneau;
+    const compte = document.createElement('span');
+    compte.className = 'sous-total';
+    compte.textContent = gens.length;
+    entete.appendChild(nomCreneau);
+    entete.appendChild(compte);
+    panneau.appendChild(entete);
+
+    gens.forEach(function (p) {
+      const ligne = document.createElement('div');
+      // "reserve" : la personne est déjà dans une voiture, on la grise (renseigné plus tard par l'API)
+      ligne.className = 'ligne-covoit-liste' + (p.reserve ? ' reserve' : '');
+      const nom = document.createElement('span');
+      nom.textContent = p.nom;
+      ligne.appendChild(nom);
+      if (p.propose) ligne.appendChild(construireBadgeConducteur(p));
+      panneau.appendChild(ligne);
+    });
+  });
+
+  const note = document.createElement('div');
+  note.className = 'note-liste';
+  note.textContent = 'Une personne disponible sur plusieurs créneaux apparaît dans chacun.';
+  panneau.appendChild(note);
+
+  return panneau;
+}
+
+// Icône voiture + places restantes sur le total (ex. 2/4)
+function construireBadgeConducteur(p) {
+  const total = parseInt(p.places, 10) || 0;
+  const restantes = Math.max(total - (p.nbPassagers || 0), 0);
+  const badge = document.createElement('span');
+  badge.className = 'badge-conducteur' + (total > 0 && restantes === 0 ? ' complet' : '');
+  badge.title = total > 0 ? restantes + ' place(s) restante(s) sur ' + total : 'Conducteur';
+  badge.innerHTML = ICONE_VOITURE + (total > 0 ? '<span>' + restantes + '/' + total + '</span>' : '');
+  return badge;
 }
 </script>
 </body>
