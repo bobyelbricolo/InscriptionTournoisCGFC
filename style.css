@@ -98,3 +98,9 @@ td{padding:9px 6px;border-bottom:1px solid var(--line)}
 .liste-equipe .entete-groupe:first-child{margin-top:0}
 .liste-equipe .entete-groupe .sous-total{color:var(--accent)}
 .liste-equipe .total-ligne{margin-top:12px;padding-top:8px;border-top:2px solid var(--ink);font-size:13px;font-weight:700;text-align:right}
+
+.ligne-covoit-liste{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;font-size:14px;border-bottom:1px solid var(--line)}
+.ligne-covoit-liste.reserve{opacity:.4}
+.badge-conducteur{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:999px;background:var(--success-bg);color:var(--success);font-size:12px;font-weight:700;white-space:nowrap}
+.badge-conducteur.complet{background:var(--danger-bg);color:var(--danger)}
+.note-liste{margin-top:12px;font-size:12px;color:var(--ink-soft)}
