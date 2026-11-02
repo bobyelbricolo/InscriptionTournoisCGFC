@@ -38,7 +38,7 @@ let VERROUILLE = false;
 (async function () {
   try {
     const t = await apiGet('getTournoi', { nom: TOURNOI });
-    if (TOURNOI && (!t || t.statut !== 'Ouvert')) {
+    if (TOURNOI && (!t || t.statut === 'Ferme')) {
       VERROUILLE = true;
       document.getElementById('roster-wrap').style.display = 'none';
       document.getElementById('form').style.display = 'none';
