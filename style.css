@@ -119,3 +119,7 @@ a.btn-mini{display:inline-block;text-decoration:none}
 .badge-conducteur{display:inline-flex;align-items:center;gap:5px;padding:2px 10px;border-radius:999px;background:var(--success-bg);color:var(--success);font-size:12px;font-weight:700;white-space:nowrap}
 .badge-conducteur.complet{background:var(--danger-bg);color:var(--danger)}
 .note-liste{margin-top:12px;font-size:12px;color:var(--ink-soft)}
+
+.btn-mini{padding:5px 12px;border:1px solid var(--accent);border-radius:8px;background:#fff;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.btn-mini:active{background:var(--accent);color:#fff}
+.select-moi{margin-bottom:12px}
