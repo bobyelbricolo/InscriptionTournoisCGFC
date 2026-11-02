@@ -385,7 +385,7 @@ function afficherCovoiturage(stats, conteneur) {
     span.className = 'pill-info';
     span.textContent = trajet[0] + ' : ' + trajet[1].length;
 
-    const panneau = construirePanneauCovoit(trajet[0], trajet[1], moi, reservable);
+    const panneau = construirePanneauCovoit(trajet[1]);
     relierPastille(span, panneau, ouvrables, function (ouvert) {
       TRAJET_OUVERT = ouvert ? trajet[0] : null;
     });
