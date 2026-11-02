@@ -14,8 +14,9 @@
     <p class="sous-titre">Qui est déjà inscrit</p>
   </div>
 
-  <a class="principal" id="lien-inscription" href="#">S'inscrire à ce tournoi</a>
-
+  <div class="section-titre">Qui es-tu ?</div>
+  <select id="select-moi" class="select-moi"><option value="">Choisis ton nom</option></select>
+  <div id="bloc-moi"></div>
   <div id="stats"></div>
 </div>
 
@@ -24,7 +25,6 @@
 <script>
 const TOURNOI = new URLSearchParams(location.search).get('tournoi') || '';
 document.getElementById('titre-tournoi').textContent = TOURNOI || 'Tournoi introuvable';
-document.getElementById('lien-inscription').href = 'inscription.html?tournoi=' + encodeURIComponent(TOURNOI);
 
 // Champs dont les pastilles ouvrent une liste séparée gars / filles.
 // Pour en ajouter un autre plus tard, ajoutez simplement son id ici.
@@ -35,28 +35,135 @@ const ICONE_VOITURE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="non
 
 (async function () {
   try {
-    const stats = await apiGet('getStatsTournoi', { nom: TOURNOI });
-    afficher(stats);
+    const res = await Promise.all([
+      apiGet('getStatsTournoi', { nom: TOURNOI }),
+      apiGet('getRoster'),
+      apiGet('getTournoi', { nom: TOURNOI })
+    ]);
+    ROSTER = res[1];
+    STATUT = res[2] ? res[2].statut : 'Ferme';
+    remplirSelectMoi();
+    await chargerMonInscription();
+    afficher(res[0]);
+    afficherBlocMoi();
   } catch (err) {
     document.getElementById('stats').innerHTML =
       '<p class="sous-titre" style="color:var(--danger)">Erreur : ' + err.message + '</p>';
   }
-
-  try {
-    const t = await apiGet('getTournoi', { nom: TOURNOI });
-    if (!t || t.statut === 'Ferme') {
-      const lien = document.getElementById('lien-inscription');
-      lien.textContent = 'Inscriptions closes';
-      lien.removeAttribute('href');
-      lien.style.opacity = '0.5';
-      lien.style.pointerEvents = 'none';
-    }
-  } catch (err) { /* non bloquant */ }
 })();
+
+// Liste déroulante "Qui es-tu ?" : tout l'effectif, le nom choisi est mémorisé sur l'appareil
+function remplirSelectMoi() {
+  const select = document.getElementById('select-moi');
+  ROSTER.forEach(function (p) {
+    const o = document.createElement('option');
+    o.value = p.prenom + ' ' + p.nom;
+    o.textContent = o.value;
+    select.appendChild(o);
+  });
+  const connu = ROSTER.some(function (p) { return p.prenom + ' ' + p.nom === MOI; });
+  if (!connu) MOI = '';
+  select.value = MOI;
+
+  select.onchange = async function () {
+    MOI = select.value;
+    try { localStorage.setItem(CLE_MOI, MOI); } catch (e) { /* stockage indisponible */ }
+    MSG_COVOIT = null;
+    await chargerMonInscription();
+    afficher(STATS_COVOIT);
+    afficherBlocMoi();
+  };
+}
+
+// Récupère l'inscription de la personne choisie (null si elle n'est pas inscrite)
+async function chargerMonInscription() {
+  MON_INSCRIPTION = null;
+  const p = ROSTER.find(function (r) { return r.prenom + ' ' + r.nom === MOI; });
+  if (!p) return;
+  try {
+    MON_INSCRIPTION = await apiGet('getInscription', { tournoi: TOURNOI, nom: p.nom, prenom: p.prenom });
+  } catch (err) { /* non bloquant */ }
+}
+
+// Adresse de la page d'inscription, ouverte sur la personne et, si besoin, sur un champ
+function lienInscription(champ) {
+  let url = 'inscription.html?tournoi=' + encodeURIComponent(TOURNOI) + '&moi=' + encodeURIComponent(MOI);
+  if (champ) url += '&champ=' + encodeURIComponent(champ);
+  return url;
+}
+
+function boutonLien(texte, champ, secondaire) {
+  const a = document.createElement('a');
+  a.className = 'principal' + (secondaire ? ' secondaire' : '') + (STATUT === 'Ferme' ? ' inactif' : '');
+  a.textContent = texte;
+  if (STATUT !== 'Ferme') a.href = lienInscription(champ);
+  return a;
+}
+
+// Petit bouton "Modifier" placé à côté d'un champ
+function boutonModifier(champ, texte) {
+  const a = document.createElement('a');
+  a.className = 'btn-mini';
+  a.textContent = texte || '✎ Modifier';
+  a.href = lienInscription(champ);
+  return a;
+}
+
+function afficherBlocMoi() {
+  const bloc = document.getElementById('bloc-moi');
+  bloc.innerHTML = '';
+
+  if (!MOI) {
+    const p = document.createElement('p');
+    p.className = 'sous-titre';
+    p.textContent = 'Choisis ton nom pour t\'inscrire ou modifier ton inscription.';
+    bloc.appendChild(p);
+    return;
+  }
+
+  const ferme = STATUT === 'Ferme';
+  const statut = document.createElement('p');
+  statut.className = 'statut-moi ' + (MON_INSCRIPTION ? 'inscrit' : 'non-inscrit');
+  statut.textContent = MON_INSCRIPTION
+    ? 'Tu es inscrit(e) à ce tournoi. Tes réponses sont en vert ci-dessous.' + (ferme ? ' Les modifications sont closes.' : '')
+    : 'Tu n\'es pas encore inscrit(e) à ce tournoi.';
+  bloc.appendChild(statut);
+
+  const boutons = document.createElement('div');
+  boutons.className = 'boutons-moi';
+  if (!MON_INSCRIPTION) {
+    boutons.appendChild(boutonLien(ferme ? 'Inscriptions closes' : 'M\'inscrire au tournoi', '', false));
+  } else {
+    boutons.appendChild(boutonLien('Modifier mon inscription', '', false));
+    boutons.appendChild(boutonLien('M\'inscrire au covoit', 'covoitAller', true));
+  }
+  bloc.appendChild(boutons);
+}
+
+// La personne a-t-elle choisi cette option pour ce champ ?
+function maReponse(id, opt) {
+  if (!MON_INSCRIPTION) return false;
+  const v = MON_INSCRIPTION[id];
+  if (v === true) return opt === 'Oui';
+  if (v === false || v === undefined || v === null) return false;
+  return String(v).split(',').map(function (s) { return s.trim(); }).indexOf(opt) !== -1;
+}
+
+// Résumé de mes réponses de covoiturage (liste vide si je n'y suis pas inscrit)
+function resumeMonCovoit() {
+  const i = MON_INSCRIPTION;
+  const lignes = [];
+  if (!i) return lignes;
+  if (i.covoitAller === true) lignes.push('Aller : ' + (i.creneauxAller || 'créneau non précisé'));
+  if (i.covoitRetour === true) lignes.push('Retour : ' + (i.creneauxRetour || 'créneau non précisé'));
+  if (lignes.length && i.proposeVoiture === 'Oui') lignes.push('Voiture : ' + (i.placesDispo || '?') + ' place(s)');
+  return lignes;
+}
 
 function afficher(stats) {
   const statsDiv = document.getElementById('stats');
   statsDiv.innerHTML = '';
+  const modifiable = !!MON_INSCRIPTION && STATUT !== 'Ferme';
 
   const total = document.createElement('p');
   total.className = 'sous-titre';
@@ -66,10 +173,14 @@ function afficher(stats) {
   Object.keys(stats.parChamp).forEach(function (id) {
     const champ = stats.parChamp[id];
 
+    const ligneTitre = document.createElement('div');
+    ligneTitre.className = 'titre-ligne';
     const titre = document.createElement('div');
     titre.className = 'section-titre';
     titre.textContent = champ.label;
-    statsDiv.appendChild(titre);
+    ligneTitre.appendChild(titre);
+    if (modifiable) ligneTitre.appendChild(boutonModifier(id));
+    statsDiv.appendChild(ligneTitre);
 
     const pills = document.createElement('div');
     pills.className = 'pills';
@@ -78,7 +189,7 @@ function afficher(stats) {
 
     Object.keys(champ.counts).forEach(function (opt) {
       const span = document.createElement('span');
-      span.className = 'pill-info';
+      span.className = 'pill-info' + (maReponse(id, opt) ? ' moi' : '');
       span.textContent = opt + ' : ' + champ.counts[opt];
 
       let panneau = null;
@@ -99,7 +210,12 @@ function afficher(stats) {
     statsDiv.appendChild(panneauxDiv);
   });
 
-  afficherCovoiturage(stats, statsDiv);
+  // La partie covoiturage est dessinée dans son propre bloc, pour pouvoir
+  // la rafraîchir seule après une réservation
+  const covoitDiv = document.createElement('div');
+  covoitDiv.id = 'covoit';
+  statsDiv.appendChild(covoitDiv);
+  afficherCovoiturage(stats, covoitDiv);
 }
 
 // Liste des joueurs d'une équipe, triée : je joue / je supporte / je ne viens pas
@@ -200,12 +316,55 @@ function relierPastille(span, panneau, ouvrables) {
   };
 }
 
-// Catégorie "Covoiturage" avec deux pastilles : Aller et Retour
+// Catégorie "Covoiturage" : mes réponses, puis pastilles Aller / Retour
 function afficherCovoiturage(stats, conteneur) {
+  STATS_COVOIT = stats;
+
+  const resume = resumeMonCovoit();
+  const modifiable = !!MON_INSCRIPTION && STATUT !== 'Ferme';
+
+  const ligneTitre = document.createElement('div');
+  ligneTitre.className = 'titre-ligne';
   const titre = document.createElement('div');
   titre.className = 'section-titre';
   titre.textContent = 'Covoiturage';
-  conteneur.appendChild(titre);
+  ligneTitre.appendChild(titre);
+  if (modifiable) {
+    ligneTitre.appendChild(resume.length
+      ? boutonModifier('covoitAller')
+      : boutonModifier('covoitAller', 'M\'inscrire au covoit'));
+  }
+  conteneur.appendChild(ligneTitre);
+
+  if (resume.length) {
+    const box = document.createElement('div');
+    box.className = 'resume-covoit';
+    box.textContent = resume.join(' · ');
+    conteneur.appendChild(box);
+  }
+
+  // Passagers possibles : inscrits au covoiturage sans proposer de voiture
+  const vus = {};
+  (stats.covoitAller || []).concat(stats.covoitRetour || []).forEach(function (p) {
+    if (!p.propose) vus[p.nom] = true;
+  });
+  const noms = Object.keys(vus);
+  const moi = noms.indexOf(MOI) !== -1 ? MOI : '';
+  const reservable = !!stats.reservationsOuvertes && noms.length > 0;
+
+  if (reservable && !MOI) {
+    const aide = document.createElement('p');
+    aide.className = 'sous-titre';
+    aide.textContent = 'Tu cherches une place ? Choisis ton nom en haut de la page pour réserver.';
+    conteneur.appendChild(aide);
+  }
+
+  if (MSG_COVOIT) {
+    const m = document.createElement('div');
+    m.className = 'msg-covoit ' + (MSG_COVOIT.ok ? 'ok' : 'err');
+    m.textContent = MSG_COVOIT.texte;
+    conteneur.appendChild(m);
+  }
 
   const pills = document.createElement('div');
   pills.className = 'pills';
@@ -217,8 +376,15 @@ function afficherCovoiturage(stats, conteneur) {
     span.className = 'pill-info';
     span.textContent = trajet[0] + ' : ' + trajet[1].length;
 
-    const panneau = construirePanneauCovoit(trajet[1]);
-    relierPastille(span, panneau, ouvrables);
+    const panneau = construirePanneauCovoit(trajet[0], trajet[1], moi, reservable);
+    relierPastille(span, panneau, ouvrables, function (ouvert) {
+      TRAJET_OUVERT = ouvert ? trajet[0] : null;
+    });
+    // Après un rafraîchissement, on rouvre le trajet qui était ouvert
+    if (TRAJET_OUVERT === trajet[0]) {
+      span.classList.add('ouvert');
+      panneau.classList.add('ouvert');
+    }
     pills.appendChild(span);
     panneauxDiv.appendChild(panneau);
   });
@@ -226,7 +392,6 @@ function afficherCovoiturage(stats, conteneur) {
   conteneur.appendChild(pills);
   conteneur.appendChild(panneauxDiv);
 }
-
 // Liste d'un trajet, classée par créneau : matin / après-midi / soir
 function construirePanneauCovoit(liste) {
   const panneau = document.createElement('div');
