@@ -32,7 +32,16 @@ const CHAMPS_EN_LISTE = ['lunchpack', 'repasSoir', 'logement'];
 const EQUIPES_ORDRE = ['Équipe gars', 'Équipe fille'];
 const CRENEAUX = ['Matin', 'Après-midi', 'Soir'];
 const ICONE_VOITURE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2-6h14l2 6v4h-2a2 2 0 0 1-4 0H9a2 2 0 0 1-4 0H3z"/><path d="M3 13h18"/></svg>';
-
+const CLE_MOI = 'covoitMoi';
+let MOI = '';
+try { MOI = localStorage.getItem(CLE_MOI) || ''; } catch (e) { /* stockage indisponible */ }
+let TRAJET_OUVERT = null;
+let MSG_COVOIT = null;
+let STATS_COVOIT = null;
+let ROSTER = [];
+let MON_INSCRIPTION = null;
+let STATUT = '';
+  
 (async function () {
   try {
     const res = await Promise.all([
