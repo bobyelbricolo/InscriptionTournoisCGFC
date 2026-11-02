@@ -70,10 +70,34 @@ let VERROUILLE = false;
   try {
     CONFIG = await apiGet('config', { section: 'joueurs' });
     render();
+    await appliquerParametres();
   } catch (err) {
     afficherMsg('Erreur de chargement du formulaire : ' + err.message, 'err');
   }
 })();
+
+// Arrivée depuis Tableau : sélectionne la personne, pré-remplit, puis défile jusqu'au champ demandé
+async function appliquerParametres() {
+  if (VERROUILLE || !ROSTER.length) return;
+  const params = new URLSearchParams(location.search);
+  const moi = params.get('moi') || '';
+  const index = ROSTER.findIndex(function (p) { return p.prenom + ' ' + p.nom === moi; });
+  if (index === -1) return;
+
+  document.getElementById('roster-select').value = String(index);
+  ROSTER_SELECTED = ROSTER[index];
+  updateVisibility();
+  await chargerInscriptionExistante();
+
+  const champ = params.get('champ');
+  const wrap = champ ? document.getElementById('wrap-' + champ) : null;
+  if (wrap) {
+    setTimeout(function () {
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      wrap.classList.add('champ-cible');
+    }, 350);
+  }
+}
 
 function render() {
   const container = document.getElementById('form');
