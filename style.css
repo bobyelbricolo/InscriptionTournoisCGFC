@@ -123,3 +123,9 @@ a.btn-mini{display:inline-block;text-decoration:none}
 .btn-mini{padding:5px 12px;border:1px solid var(--accent);border-radius:8px;background:#fff;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
 .btn-mini:active{background:var(--accent);color:#fff}
 .select-moi{margin-bottom:12px}
+
+.carte-moi{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.statut-carte{font-size:12px;font-weight:700;margin-right:4px}
+.statut-carte.inscrit{color:var(--success)}
+.statut-carte.non-inscrit{color:var(--ink-soft)}
+.chip-moi{padding:3px 10px;border-radius:999px;background:var(--success-bg);color:var(--success);font-size:12px;font-weight:600;white-space:nowrap}

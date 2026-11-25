@@ -13,6 +13,10 @@
     <p class="sous-titre">Choisis un tournoi</p>
   </div>
 
+  <div class="section-titre">Qui es-tu ?</div>
+  <select id="select-moi" class="select-moi"><option value="">Choisis ton nom</option></select>
+  <p class="sous-titre" id="info-moi"></p>
+
   <div class="section-titre">À venir</div>
   <div id="liste-avenir"></div>
 
@@ -28,22 +32,113 @@ const BADGES = {
   Ferme: { classe: 'ferme', texte: 'Inscription terminée' }
 };
 
+const CLE_MOI = 'covoitMoi';
+let MOI = '';
+try { MOI = localStorage.getItem(CLE_MOI) || ''; } catch (e) { /* stockage indisponible */ }
+let TOURNOIS = [];
+let ROSTER = [];
+let MES_INSCRIPTIONS = null; // null = inconnu, sinon { nomTournoi: inscription }
+
 (async function () {
   try {
-    const tournois = await apiGet('listTournois');
-    const aujourdhui = new Date();
-    aujourdhui.setHours(0, 0, 0, 0);
-
-    const avenir = tournois.filter(function (t) { return !estPasse(t.date, aujourdhui); });
-    const passes = tournois.filter(function (t) { return estPasse(t.date, aujourdhui); });
-
-    remplir('liste-avenir', avenir, 'Aucun tournoi à venir pour le moment.', false);
-    remplir('liste-passes', passes, 'Aucun tournoi passé.', true);
+    const res = await Promise.all([
+      apiGet('listTournois'),
+      apiGet('getRoster').catch(function () { return []; })
+    ]);
+    TOURNOIS = res[0];
+    ROSTER = res[1];
+    remplirSelectMoi();
+    await chargerMesInscriptions();
+    afficherTournois();
   } catch (err) {
     document.getElementById('liste-avenir').innerHTML =
       '<p class="sous-titre" style="color:var(--danger)">Erreur : ' + err.message + '</p>';
   }
 })();
+
+function afficherTournois() {
+  const aujourdhui = new Date();
+  aujourdhui.setHours(0, 0, 0, 0);
+
+  const avenir = TOURNOIS.filter(function (t) { return !estPasse(t.date, aujourdhui); });
+  const passes = TOURNOIS.filter(function (t) { return estPasse(t.date, aujourdhui); });
+
+  remplir('liste-avenir', avenir, 'Aucun tournoi à venir pour le moment.', false);
+  remplir('liste-passes', passes, 'Aucun tournoi passé.', true);
+}
+
+// Liste "Qui es-tu ?" : le nom choisi est mémorisé sur l'appareil (repris sur les autres pages)
+function remplirSelectMoi() {
+  const select = document.getElementById('select-moi');
+  ROSTER.forEach(function (p) {
+    const o = document.createElement('option');
+    o.value = p.prenom + ' ' + p.nom;
+    o.textContent = o.value;
+    select.appendChild(o);
+  });
+  const connu = ROSTER.some(function (p) { return p.prenom + ' ' + p.nom === MOI; });
+  if (!connu) MOI = '';
+  select.value = MOI;
+
+  select.onchange = async function () {
+    MOI = select.value;
+    try { localStorage.setItem(CLE_MOI, MOI); } catch (e) { /* stockage indisponible */ }
+    await chargerMesInscriptions();
+    afficherTournois();
+  };
+}
+
+// Récupère, en un seul appel, toutes les inscriptions de la personne choisie
+async function chargerMesInscriptions() {
+  const info = document.getElementById('info-moi');
+  info.textContent = '';
+  MES_INSCRIPTIONS = null;
+
+  const p = ROSTER.find(function (r) { return r.prenom + ' ' + r.nom === MOI; });
+  if (!p) return;
+  try {
+    const liste = await apiGet('getMesInscriptions', { nom: p.nom, prenom: p.prenom });
+    MES_INSCRIPTIONS = {};
+    liste.forEach(function (r) { MES_INSCRIPTIONS[r.tournoi] = r; });
+  } catch (err) {
+    info.textContent = 'Impossible de charger tes inscriptions : ' + err.message;
+  }
+}
+
+// Bandeau "ma situation" d'une carte : inscrit(e) ou non, puis le résumé de mes choix
+function construireBlocMoi(t) {
+  if (!MOI || MES_INSCRIPTIONS === null) return null;
+  const r = MES_INSCRIPTIONS[t.nomTournoi];
+
+  const bloc = document.createElement('div');
+  bloc.className = 'carte-moi';
+
+  const statut = document.createElement('span');
+  statut.className = 'statut-carte ' + (r ? 'inscrit' : 'non-inscrit');
+  statut.textContent = r ? '✓ Inscrit(e)' : 'Pas inscrit(e)';
+  bloc.appendChild(statut);
+  if (!r) return bloc;
+
+  const PRESENCE = { 'Je joue': '✅ Je joue', 'Je supporte': '📣 Je supporte', 'Je ne viens pas': '❌ Je ne viens pas' };
+  const LUNCH = { 'Oui végé': '🥗 Lunchpack végé', 'Oui non végé': '🥪 Lunchpack carné' };
+  const REPAS = { 'Oui végé': '🥗 Repas du soir végé', 'Oui non végé': '🍽️ Repas du soir carné' };
+
+  const puces = [];
+  if (PRESENCE[r.presence]) puces.push(PRESENCE[r.presence]);
+  if (LUNCH[r.lunchpack]) puces.push(LUNCH[r.lunchpack]);
+  if (REPAS[r.repasSoir]) puces.push(REPAS[r.repasSoir]);
+  if (r.logement) puces.push('🛏️ ' + String(r.logement).replace(/ soir/g, ''));
+  if (r.covoitAller === true || r.covoitRetour === true) puces.push('🚗 Covoit');
+
+  puces.forEach(function (texte) {
+    const s = document.createElement('span');
+    s.className = 'chip-moi';
+    s.textContent = texte;
+    bloc.appendChild(s);
+  });
+  return bloc;
+}
+
 
 function estPasse(dateStr, aujourdhui) {
   if (!dateStr) return false;
@@ -103,6 +198,9 @@ function remplir(id, tournois, texteVide, passe) {
     reponses.className = 'carte-sous';
     reponses.textContent = t.nbReponses + ' réponse(s)';
     a.appendChild(reponses);
+
+    const blocMoi = construireBlocMoi(t);
+    if (blocMoi) a.appendChild(blocMoi);
 
     container.appendChild(a);
   });
