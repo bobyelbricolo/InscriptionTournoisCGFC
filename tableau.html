@@ -15,12 +15,13 @@
   </div>
 
   <div class="section-titre">Qui es-tu ?</div>
-  <select id="select-moi" class="select-moi"><option value="">Choisis ton nom</option></select>
+  <div id="choix-moi" class="select-moi"></div>
   <div id="bloc-moi"></div>
   <div id="stats"></div>
 </div>
 
 <script src="api.js"></script>
+<script src="choix-nom.js"></script>
 <script src="nav.js"></script>
 <script>
 const TOURNOI = new URLSearchParams(location.search).get('tournoi') || '';
@@ -61,27 +62,23 @@ let STATUT = '';
   }
 })();
 
-// Liste déroulante "Qui es-tu ?" : tout l'effectif, le nom choisi est mémorisé sur l'appareil
+// Champ "Qui es-tu ?" : tout l'effectif, le nom choisi est mémorisé sur l'appareil
 function remplirSelectMoi() {
-  const select = document.getElementById('select-moi');
-  ROSTER.forEach(function (p) {
-    const o = document.createElement('option');
-    o.value = p.prenom + ' ' + p.nom;
-    o.textContent = o.value;
-    select.appendChild(o);
-  });
-  const connu = ROSTER.some(function (p) { return p.prenom + ' ' + p.nom === MOI; });
+  const connu = ROSTER.find(function (p) { return p.prenom + ' ' + p.nom === MOI; });
   if (!connu) MOI = '';
-  select.value = MOI;
 
-  select.onchange = async function () {
-    MOI = select.value;
-    try { localStorage.setItem(CLE_MOI, MOI); } catch (e) { /* stockage indisponible */ }
-    MSG_COVOIT = null;
-    await chargerMonInscription();
-    afficher(STATS_COVOIT);
-    afficherBlocMoi();
-  };
+  const choix = creerChoixNom(document.getElementById('choix-moi'), ROSTER, {
+    placeholder: 'Choisis ton nom',
+    onChange: async function (p) {
+      MOI = p ? p.prenom + ' ' + p.nom : '';
+      try { localStorage.setItem(CLE_MOI, MOI); } catch (e) { /* stockage indisponible */ }
+      MSG_COVOIT = null;
+      await chargerMonInscription();
+      afficher(STATS_COVOIT);
+      afficherBlocMoi();
+    }
+  });
+  if (connu) choix.choisir(connu);
 }
 
 // Récupère l'inscription de la personne choisie (null si elle n'est pas inscrite)

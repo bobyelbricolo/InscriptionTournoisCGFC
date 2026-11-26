@@ -129,3 +129,17 @@ a.btn-mini{display:inline-block;text-decoration:none}
 .statut-carte.inscrit{color:var(--success)}
 .statut-carte.non-inscrit{color:var(--ink-soft)}
 .chip-moi{padding:3px 10px;border-radius:999px;background:var(--success-bg);color:var(--success);font-size:12px;font-weight:600;white-space:nowrap}
+
+.carte-nom{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.statut-carte.absent{color:var(--danger)}
+
+.choix-nom{position:relative}
+.choix-liste{display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;z-index:30;max-height:240px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(27,36,48,.12)}
+.choix-liste.ouvert{display:block}
+.choix-item{padding:10px 14px;font-size:15px;cursor:pointer;border-bottom:1px solid var(--line)}
+.choix-item:last-child{border-bottom:none}
+.choix-item:hover,.choix-item.actif{background:var(--bg)}
+.choix-item.choisi{color:var(--accent)}
+.choix-item b{color:var(--accent-dark);font-weight:800}
+.choix-vide{padding:10px 14px;font-size:14px;color:var(--ink-soft)}
+#roster-wrap.champ{overflow:visible}

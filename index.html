@@ -14,7 +14,7 @@
   </div>
 
   <div class="section-titre">Qui es-tu ?</div>
-  <select id="select-moi" class="select-moi"><option value="">Choisis ton nom</option></select>
+  <div id="choix-moi" class="select-moi"></div>
   <p class="sous-titre" id="info-moi"></p>
 
   <div class="section-titre">À venir</div>
@@ -25,6 +25,7 @@
 </div>
 
 <script src="api.js"></script>
+<script src="choix-nom.js"></script>
 <script>
 const BADGES = {
   Ouvert: { classe: 'ouvert', texte: 'Ouvert' },
@@ -67,25 +68,21 @@ function afficherTournois() {
   remplir('liste-passes', passes, 'Aucun tournoi passé.', true);
 }
 
-// Liste "Qui es-tu ?" : le nom choisi est mémorisé sur l'appareil (repris sur les autres pages)
+// Champ "Qui es-tu ?" : le nom choisi est mémorisé sur l'appareil (repris sur les autres pages)
 function remplirSelectMoi() {
-  const select = document.getElementById('select-moi');
-  ROSTER.forEach(function (p) {
-    const o = document.createElement('option');
-    o.value = p.prenom + ' ' + p.nom;
-    o.textContent = o.value;
-    select.appendChild(o);
-  });
-  const connu = ROSTER.some(function (p) { return p.prenom + ' ' + p.nom === MOI; });
+  const connu = ROSTER.find(function (p) { return p.prenom + ' ' + p.nom === MOI; });
   if (!connu) MOI = '';
-  select.value = MOI;
 
-  select.onchange = async function () {
-    MOI = select.value;
-    try { localStorage.setItem(CLE_MOI, MOI); } catch (e) { /* stockage indisponible */ }
-    await chargerMesInscriptions();
-    afficherTournois();
-  };
+  const choix = creerChoixNom(document.getElementById('choix-moi'), ROSTER, {
+    placeholder: 'Choisis ton nom',
+    onChange: async function (p) {
+      MOI = p ? p.prenom + ' ' + p.nom : '';
+      try { localStorage.setItem(CLE_MOI, MOI); } catch (e) { /* stockage indisponible */ }
+      await chargerMesInscriptions();
+      afficherTournois();
+    }
+  });
+  if (connu) choix.choisir(connu);
 }
 
 // Récupère, en un seul appel, toutes les inscriptions de la personne choisie
@@ -105,26 +102,36 @@ async function chargerMesInscriptions() {
   }
 }
 
-// Bandeau "ma situation" d'une carte : inscrit(e) ou non, puis le résumé de mes choix
+// Bandeau "ma situation" d'une carte : ma présence en toutes lettres, puis le résumé de mes choix
 function construireBlocMoi(t) {
   if (!MOI || MES_INSCRIPTIONS === null) return null;
   const r = MES_INSCRIPTIONS[t.nomTournoi];
+
+  const PRESENCE = {
+    'Je joue': { texte: '✅ Je joue', classe: 'inscrit' },
+    'Je supporte': { texte: '📣 Je supporte', classe: 'inscrit' },
+    'Je ne viens pas': { texte: '❌ Je suis absent(e)', classe: 'absent' }
+  };
+  const LUNCH = { 'Oui végé': '🥗 Lunchpack végé', 'Oui non végé': '🥪 Lunchpack carné' };
+  const REPAS = { 'Oui végé': '🥗 Repas du soir végé', 'Oui non végé': '🍽️ Repas du soir carné' };
 
   const bloc = document.createElement('div');
   bloc.className = 'carte-moi';
 
   const statut = document.createElement('span');
-  statut.className = 'statut-carte ' + (r ? 'inscrit' : 'non-inscrit');
-  statut.textContent = r ? '✓ Inscrit(e)' : 'Pas inscrit(e)';
-  bloc.appendChild(statut);
-  if (!r) return bloc;
+  if (!r) {
+    statut.className = 'statut-carte non-inscrit';
+    statut.textContent = 'Pas de réponse';
+    bloc.appendChild(statut);
+    return bloc;
+  }
 
-  const PRESENCE = { 'Je joue': '✅ Je joue', 'Je supporte': '📣 Je supporte', 'Je ne viens pas': '❌ Je ne viens pas' };
-  const LUNCH = { 'Oui végé': '🥗 Lunchpack végé', 'Oui non végé': '🥪 Lunchpack carné' };
-  const REPAS = { 'Oui végé': '🥗 Repas du soir végé', 'Oui non végé': '🍽️ Repas du soir carné' };
+  const p = PRESENCE[r.presence] || { texte: r.presence || '', classe: 'inscrit' };
+  statut.className = 'statut-carte ' + p.classe;
+  statut.textContent = p.texte;
+  bloc.appendChild(statut);
 
   const puces = [];
-  if (PRESENCE[r.presence]) puces.push(PRESENCE[r.presence]);
   if (LUNCH[r.lunchpack]) puces.push(LUNCH[r.lunchpack]);
   if (REPAS[r.repasSoir]) puces.push(REPAS[r.repasSoir]);
   if (r.logement) puces.push('🛏️ ' + String(r.logement).replace(/ soir/g, ''));
@@ -156,6 +163,19 @@ function formatDateFr(dateStr) {
   return jj + '/' + mm + '/' + aaaa;
 }
 
+// Titre d'une carte : "Ville - Équipe Homme", "Ville - Équipe Femme" ou "Ville - Équipe Homme / Femme"
+// (gars A ou gars B => Homme ; fille => Femme)
+function titreTournoi(t) {
+  const eq = String(t.equipesEngagees || '');
+  const homme = /gars/i.test(eq);
+  const femme = /fille/i.test(eq);
+  let equipe = '';
+  if (homme && femme) equipe = 'Équipe Homme / Femme';
+  else if (homme) equipe = 'Équipe Homme';
+  else if (femme) equipe = 'Équipe Femme';
+  return (t.ville || t.nomTournoi) + (equipe ? ' - ' + equipe : '');
+}
+
 function remplir(id, tournois, texteVide, passe) {
   const container = document.getElementById(id);
   container.innerHTML = '';
@@ -171,10 +191,16 @@ function remplir(id, tournois, texteVide, passe) {
     const header = document.createElement('div');
     header.className = 'carte-header';
 
+    const blocTitre = document.createElement('div');
     const titre = document.createElement('div');
     titre.className = 'carte-titre';
-    titre.textContent = t.nomTournoi;
-    header.appendChild(titre);
+    titre.textContent = titreTournoi(t);
+    blocTitre.appendChild(titre);
+    const nom = document.createElement('div');
+    nom.className = 'carte-nom';
+    nom.textContent = t.nomTournoi;
+    blocTitre.appendChild(nom);
+    header.appendChild(blocTitre);
 
     const badgeInfo = BADGES[t.statut] || BADGES.Ferme;
     const badge = document.createElement('span');
@@ -188,11 +214,6 @@ function remplir(id, tournois, texteVide, passe) {
     date.className = 'carte-sous';
     date.textContent = formatDateFr(t.date);
     a.appendChild(date);
-
-    const lieu = document.createElement('div');
-    lieu.className = 'carte-sous';
-    lieu.textContent = t.ville;
-    a.appendChild(lieu);
 
     const reponses = document.createElement('div');
     reponses.className = 'carte-sous';
