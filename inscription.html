@@ -16,7 +16,7 @@
 
   <div id="roster-wrap" class="champ">
     <div class="section-titre">Qui es-tu ? <span class="requis">*</span></div>
-    <select id="roster-select"><option value="">Sélectionne ton nom</option></select>
+    <div id="choix-roster"></div>
   </div>
 
   <div id="form"></div>
@@ -25,6 +25,7 @@
 </div>
 
 <script src="api.js"></script>
+<script src="choix-nom.js"></script>
 <script src="nav.js"></script>
 <script>
 const TOURNOI = new URLSearchParams(location.search).get('tournoi') || '';
@@ -34,6 +35,7 @@ let CONFIG;
 let ROSTER = [];
 let ROSTER_SELECTED = null;
 let VERROUILLE = false;
+let CHOIX_NOM = null;
 
 (async function () {
   try {
@@ -51,18 +53,14 @@ let VERROUILLE = false;
 
   try {
     ROSTER = await apiGet('getRoster');
-    const select = document.getElementById('roster-select');
-    ROSTER.forEach(function (p, i) {
-      const option = document.createElement('option');
-      option.value = i;
-      option.textContent = p.prenom + ' ' + p.nom;
-      select.appendChild(option);
+    CHOIX_NOM = creerChoixNom(document.getElementById('choix-roster'), ROSTER, {
+      placeholder: 'Sélectionne ton nom',
+      onChange: function (p) {
+        ROSTER_SELECTED = p;
+        updateVisibility();
+        chargerInscriptionExistante();
+      }
     });
-    select.onchange = function () {
-      ROSTER_SELECTED = select.value === '' ? null : ROSTER[select.value];
-      updateVisibility();
-      chargerInscriptionExistante();
-    };
   } catch (err) {
     afficherMsg('Erreur de chargement de l’effectif : ' + err.message, 'err');
   }
@@ -78,14 +76,14 @@ let VERROUILLE = false;
 
 // Arrivée depuis Tableau : sélectionne la personne, pré-remplit, puis défile jusqu'au champ demandé
 async function appliquerParametres() {
-  if (VERROUILLE || !ROSTER.length) return;
+  if (VERROUILLE || !ROSTER.length || !CHOIX_NOM) return;
   const params = new URLSearchParams(location.search);
   const moi = params.get('moi') || '';
-  const index = ROSTER.findIndex(function (p) { return p.prenom + ' ' + p.nom === moi; });
-  if (index === -1) return;
+  const personne = ROSTER.find(function (p) { return p.prenom + ' ' + p.nom === moi; });
+  if (!personne) return;
 
-  document.getElementById('roster-select').value = String(index);
-  ROSTER_SELECTED = ROSTER[index];
+  CHOIX_NOM.choisir(personne);
+  ROSTER_SELECTED = personne;
   updateVisibility();
   await chargerInscriptionExistante();
 
